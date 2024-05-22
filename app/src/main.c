@@ -1,4 +1,5 @@
 #include "bt.h"
+#include "heartRate.h"
 
 void bt_connected_cb(void)
 {

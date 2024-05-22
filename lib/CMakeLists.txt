@@ -1,0 +1,1 @@
+add_subdirectory(SparkFun_MAX3010x)
