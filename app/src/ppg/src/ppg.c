@@ -4,14 +4,19 @@
 #include <zephyr/logging/log.h>
 
 #include "heartRate.h"
+#include "ring_buffer.h"
 
 #define SAMPLE_PERIOD_MS 20 // 50 Hz
+#define HR_MOV_AVG_SIZE 4
 
 LOG_MODULE_REGISTER(ppg, LOG_LEVEL_DBG);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
 
 static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
+
+static float hr_mov_avg_buf[HR_MOV_AVG_SIZE];
+static ring_buffer_t hr_mov_avg_ring_buf;
 
 atomic_t current_hr_bpm;
 
@@ -20,6 +25,7 @@ static const int32_t test_samples[300] = {35115, 35119, 35113, 35107, 35107, 351
 
 void ppg_start_sampling(void)
 {
+    ring_buffer_init(&hr_mov_avg_ring_buf, hr_mov_avg_buf, HR_MOV_AVG_SIZE);
     k_timer_start(&sampling_tmr, K_MSEC(SAMPLE_PERIOD_MS), K_MSEC(SAMPLE_PERIOD_MS));
 }
 
@@ -38,19 +44,26 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
     static int64_t last_beat_ms = 0;
     int64_t current_beat_ms;
 	int64_t diff_ms;
-	uint32_t bpm;
+	float bpm;
+    int avg_bpm;
 
     if (checkForBeat(new_sample))
     {
         LOG_DBG("Detected beat at sample %d", i);
         current_beat_ms = k_uptime_get();
+
         if (last_beat_ms != 0)
         {
             diff_ms = current_beat_ms - last_beat_ms;
-            bpm = (uint32_t) (60.f / (diff_ms / 1000.f));
-            LOG_DBG("BPM: %d", bpm);
+            bpm = 60.f / (diff_ms / 1000.f);
+            LOG_DBG("New BPM: %d", (int) bpm);
+
+            ring_buffer_put(&hr_mov_avg_ring_buf, bpm);
+            ring_buffer_mov_avg(&hr_mov_avg_ring_buf, &bpm);
+
             atomic_set(&current_hr_bpm, (atomic_val_t) bpm);
         }
+
         last_beat_ms = current_beat_ms;
     }
 }
