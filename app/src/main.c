@@ -16,8 +16,7 @@ K_TIMER_DEFINE(send_tmr, send_tmr_cb, NULL);
 
 int main(void)
 {
-	// bt_start(bt_connected_cb);
-	bt_connected_cb();
+	bt_start(bt_connected_cb);
 
 	return 0;
 }
@@ -41,5 +40,5 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 
 	LOG_DBG("Sending message: HR %d, RMSSD %d", msg[0], (msg[2] << 8) | msg[1]);
 
-	// bt_send_notification(msg, MSG_LEN);
+	bt_send_notification(msg, MSG_LEN);
 }
