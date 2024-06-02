@@ -5,7 +5,7 @@
 #include "ppg.h"
 
 #define MSG_PERIOD_MS (1000U)
-#define MSG_LEN (1U)
+#define MSG_LEN (3U)
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -16,7 +16,8 @@ K_TIMER_DEFINE(send_tmr, send_tmr_cb, NULL);
 
 int main(void)
 {
-	bt_start(bt_connected_cb);
+	// bt_start(bt_connected_cb);
+	bt_connected_cb();
 
 	return 0;
 }
@@ -30,10 +31,15 @@ static void bt_connected_cb(void)
 static void send_tmr_cb(struct k_timer *p_tmr)
 {
 	uint8_t msg[MSG_LEN];
+	uint16_t rmssd;
 
 	msg[0] = (uint8_t) ppg_get_hr_bpm();
+	rmssd = (uint16_t) ppg_get_rmssd();
+	msg[1] = (uint8_t) rmssd;
+	msg[2] = (uint8_t) (rmssd >> 8);
 
-	LOG_DBG("Sending message: heart rate %d", msg[0]);
 
-	bt_send_notification(msg, MSG_LEN);
+	LOG_DBG("Sending message: HR %d, RMSSD %d", msg[0], (msg[2] << 8) | msg[1]);
+
+	// bt_send_notification(msg, MSG_LEN);
 }
