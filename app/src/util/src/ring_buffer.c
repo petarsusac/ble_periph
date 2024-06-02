@@ -67,15 +67,15 @@ int ring_buffer_copy_inorder(ring_buffer_t *p_ring_buf, float *p_dest)
         if (p_ring_buf->num_items < p_ring_buf->size)
         {
             // Buffer is not full yet - copy everything from 0 to head-1
-            memcpy(p_dest, p_ring_buf->p_buf, p_ring_buf->head);
+            memcpy(p_dest, p_ring_buf->p_buf, p_ring_buf->head * sizeof(float));
         }
         else
         {
             // Head has circled around. Copy 2 times:
             // 1. From head to the end of the buffer
             // 2. From 0 to head-1
-            memcpy(p_dest, &p_ring_buf->p_buf[p_ring_buf->head], p_ring_buf->size - p_ring_buf->head);
-            memcpy(&p_dest[p_ring_buf->size - p_ring_buf->head], p_ring_buf->p_buf, p_ring_buf->head);
+            memcpy(p_dest, &p_ring_buf->p_buf[p_ring_buf->head], (p_ring_buf->size - p_ring_buf->head) * sizeof(float));
+            memcpy(&p_dest[p_ring_buf->size - p_ring_buf->head], p_ring_buf->p_buf, p_ring_buf->head * sizeof(float));
         }
 
         return p_ring_buf->num_items;
