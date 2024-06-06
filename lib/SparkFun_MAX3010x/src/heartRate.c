@@ -78,7 +78,7 @@ static const uint16_t FIRCoeffs[12] = {172, 321, 579, 927, 1360, 1858, 2390, 291
 //  Heart Rate Monitor functions takes a sample value and the sample number
 //  Returns true if a beat is detected
 //  A running average of four samples is recommended for display on the screen.
-bool checkForBeat(int32_t sample)
+bool checkForBeat(int32_t sample, int16_t *p_amplitude)
 {
   bool beatDetected = false;
 
@@ -109,6 +109,7 @@ bool checkForBeat(int32_t sample)
     {
       //Heart beat!!!
       beatDetected = true;
+      *p_amplitude = IR_AC_Max - IR_AC_Min;
     }
   }
 
