@@ -62,7 +62,14 @@ int ring_buffer_mov_avg(ring_buffer_t *p_ring_buf, float *p_res)
     {
         k_mutex_lock(&p_ring_buf->mutex, K_FOREVER);
 
-        *p_res = p_ring_buf->sum / p_ring_buf->num_items;
+        if (p_ring_buf->num_items != 0)
+        {
+            *p_res = p_ring_buf->sum / p_ring_buf->num_items;
+        }
+        else
+        {
+            *p_res = 0.0f;
+        }
 
         k_mutex_unlock(&p_ring_buf->mutex);
 
