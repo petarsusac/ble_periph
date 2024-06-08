@@ -3,6 +3,7 @@
 
 #include "bt.h"
 #include "ppg.h"
+#include "eda.h"
 
 #define MSG_PERIOD_MS (1000U)
 #define MSG_LEN (5U)
@@ -24,6 +25,7 @@ int main(void)
 static void bt_connected_cb(void)
 {
 	ppg_start_sampling();
+	eda_start_sampling();
 	k_timer_start(&send_tmr, K_MSEC(MSG_PERIOD_MS), K_MSEC(MSG_PERIOD_MS));
 }
 

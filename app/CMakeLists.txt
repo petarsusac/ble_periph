@@ -13,4 +13,5 @@ target_sources(app PRIVATE src/main.c)
 
 add_subdirectory(src/bt)
 add_subdirectory(src/ppg)
+add_subdirectory(src/eda)
 add_subdirectory(src/util)
