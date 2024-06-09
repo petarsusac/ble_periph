@@ -57,6 +57,8 @@
 
 #include "heartRate.h"
 
+#define MODIFIED_ALGO 1
+
 int16_t IR_AC_Max = 20;
 int16_t IR_AC_Min = -20;
 
@@ -104,6 +106,7 @@ bool checkForBeat(int32_t sample, int16_t *p_amplitude)
     negativeEdge = 0;
     IR_AC_Signal_max = 0;
 
+#ifndef MODIFIED_ALGO
     //if ((IR_AC_Max - IR_AC_Min) > 100 & (IR_AC_Max - IR_AC_Min) < 1000)
     if (((IR_AC_Max - IR_AC_Min) > 20) && ((IR_AC_Max - IR_AC_Min) < 1000))
     {
@@ -111,7 +114,20 @@ bool checkForBeat(int32_t sample, int16_t *p_amplitude)
       beatDetected = true;
       *p_amplitude = IR_AC_Max - IR_AC_Min;
     }
+#endif /* MODIFIED_ALGO */
   }
+
+#ifdef MODIFIED_ALGO
+  // Local maximum detection
+  if (positiveEdge && (IR_AC_Signal_Current < IR_AC_Signal_Previous)
+      && ((IR_AC_Max - IR_AC_Min) > 20) && ((IR_AC_Max - IR_AC_Min) < 1000))
+  {
+    beatDetected = true;
+    *p_amplitude = IR_AC_Max - IR_AC_Min;
+    positiveEdge = 0;
+    negativeEdge = 1;
+  }
+#endif /* MODIFIED_ALGO */
 
   //  Detect negative zero crossing (falling edge)
   if ((IR_AC_Signal_Previous > 0) && (IR_AC_Signal_Current <= 0))
