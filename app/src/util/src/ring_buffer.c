@@ -34,9 +34,6 @@ int ring_buffer_put(ring_buffer_t *p_ring_buf, float item)
     {
         k_mutex_lock(&p_ring_buf->mutex, K_FOREVER);
 
-        p_ring_buf->p_buf[p_ring_buf->head] = item;
-        p_ring_buf->head = (p_ring_buf->head + 1) % p_ring_buf->size;
-
         if (p_ring_buf->num_items < p_ring_buf->size)
         {
             p_ring_buf->num_items += 1;
@@ -44,9 +41,11 @@ int ring_buffer_put(ring_buffer_t *p_ring_buf, float item)
         }
         else
         {
-            tail = (p_ring_buf->head + 1) % p_ring_buf->size;
-            p_ring_buf->sum = p_ring_buf->sum - p_ring_buf->p_buf[tail] + item;
+            p_ring_buf->sum = p_ring_buf->sum - p_ring_buf->p_buf[p_ring_buf->head] + item;
         }
+        
+        p_ring_buf->p_buf[p_ring_buf->head] = item;
+        p_ring_buf->head = (p_ring_buf->head + 1) % p_ring_buf->size;
 
         k_mutex_unlock(&p_ring_buf->mutex);
 
