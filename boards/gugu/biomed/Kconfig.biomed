@@ -1,0 +1,2 @@
+config BOARD_BIOMED
+    select SOC_ESP32C3_WROOM_02_N4

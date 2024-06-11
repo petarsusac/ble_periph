@@ -1,0 +1,5 @@
+board:
+  name: biomed
+  vendor: gugu
+  socs:
+  - name: esp32c3
