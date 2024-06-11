@@ -6,7 +6,7 @@
 #include "eda.h"
 
 #define MSG_PERIOD_MS (1000U)
-#define MSG_LEN (5U)
+#define MSG_LEN (7U)
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -34,6 +34,7 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 	uint8_t msg[MSG_LEN];
 	uint16_t rmssd;
 	uint16_t ppg_ampl;
+	uint16_t epc;
 
 	/**
 	 * Message bytes:
@@ -42,6 +43,8 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 	 * [2] RMSSD high byte
 	 * [3] PPG amplitude low byte
 	 * [4] PPG amplitude high byte
+	 * [5] EPC low byte
+	 * [6] EPC high byte
 	*/
 
 	msg[0] = (uint8_t) ppg_get_hr_bpm();
@@ -54,10 +57,15 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 	msg[3] = (uint8_t) (ppg_ampl & 0xFF);
 	msg[4] = (uint8_t) (ppg_ampl >> 8);
 
-	LOG_DBG("Sending message: HR %d, RMSSD %d, PPG amplitude %d",
+	epc = (uint16_t) eda_get_epc();
+	msg[5] = (uint8_t) (epc & 0xFF);
+	msg[6] = (uint8_t) (epc >> 8);
+
+	LOG_DBG("Sending message: HR %d, RMSSD %d, PPG ampl %d, EPC %d",
 			msg[0],
 			((uint16_t) msg[2] << 8) | msg[1],
-			((uint16_t) msg[4] << 8) | msg[3]);
+			((uint16_t) msg[4] << 8) | msg[3],
+			((uint16_t) msg[5] << 8) | msg[6]);
 
 	bt_send_notification(msg, MSG_LEN);
 }
