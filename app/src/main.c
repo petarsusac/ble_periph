@@ -6,7 +6,6 @@
 #include "eda.h"
 
 #define MSG_PERIOD_MS (1000U)
-#define MSG_LEN (7U)
 
 LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
 
@@ -18,7 +17,7 @@ K_TIMER_DEFINE(send_tmr, send_tmr_cb, NULL);
 int main(void)
 {
 	bt_start(bt_connected_cb);
-	
+
 	return 0;
 }
 
@@ -31,7 +30,7 @@ static void bt_connected_cb(void)
 
 static void send_tmr_cb(struct k_timer *p_tmr)
 {
-	uint8_t msg[MSG_LEN];
+	uint8_t msg[BT_PAYLOAD_LEN];
 	uint16_t rmssd;
 	uint16_t ppg_ampl;
 	uint16_t epc;
@@ -67,5 +66,5 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 			((uint16_t) msg[4] << 8) | msg[3],
 			((uint16_t) msg[5] << 8) | msg[6]);
 
-	bt_send_notification(msg, MSG_LEN);
+	bt_send_notification(msg, BT_PAYLOAD_LEN);
 }

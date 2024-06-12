@@ -17,9 +17,7 @@ static const struct bt_uuid_128 vnd_uuid = BT_UUID_INIT_128(
 static const struct bt_uuid_128 vnd_chr_uuid = BT_UUID_INIT_128(
 	BT_UUID_128_ENCODE(0x12345678, 0x1234, 0x5678, 0x1234, 0x56789abcdef1));
 
-#define VND_MAX_LEN 20
-
-static uint8_t vnd_value[VND_MAX_LEN + 1] = { 'V', 'e', 'n', 'd', 'o', 'r'};
+static uint8_t vnd_value[BT_PAYLOAD_LEN] = {0};
 
 static struct bt_conn *p_conn_handle = NULL;
 static bt_connected_cb_t connected_cb = NULL;
@@ -30,7 +28,7 @@ static ssize_t read_vnd(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 	const char *value = attr->user_data;
 
 	return bt_gatt_attr_read(conn, attr, buf, len, offset, value,
-				 strlen(value));
+				BT_PAYLOAD_LEN);
 }
 
 static ssize_t write_vnd(struct bt_conn *conn, const struct bt_gatt_attr *attr,
@@ -39,7 +37,7 @@ static ssize_t write_vnd(struct bt_conn *conn, const struct bt_gatt_attr *attr,
 {
 	uint8_t *value = attr->user_data;
 
-	if (offset + len > VND_MAX_LEN) {
+	if (offset + len > BT_PAYLOAD_LEN) {
 		return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
 	}
 
@@ -128,6 +126,7 @@ int bt_send_notification(uint8_t *data, size_t len)
 {
     if (p_conn_handle && data)
     {
+		memcpy(vnd_value, data, len);
         return bt_gatt_notify(p_conn_handle, &vnd_svc.attrs[1], data, len);
     }
 
