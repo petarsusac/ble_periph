@@ -13,4 +13,13 @@
 			bias-pull-up;
 		};
 	};
+
+	i2c0_default: i2c0_default {
+		group1 {
+			pinmux = <I2C0_SDA_GPIO5>;
+		};
+		group2 {
+			pinmux = <I2C0_SCL_GPIO6>;
+		};
+	};
 };
