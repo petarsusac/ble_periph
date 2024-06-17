@@ -12,7 +12,7 @@
 #define IBI_MOV_AVG_SIZE 30
 #define AMP_MOV_AVG_SIZE 4
 
-LOG_MODULE_REGISTER(ppg, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(ppg, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
 static inline float ms_to_bpm(int64_t ms);

@@ -12,7 +12,7 @@
 #define OVERSAMPLING_BUF_SIZE 10 // 10 Hz after averaging
 #define EDA_BUF_SIZE 50
 
-LOG_MODULE_REGISTER(eda, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(eda, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
 static inline float mv_to_eda_ns(int32_t mv);

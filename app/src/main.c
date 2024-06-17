@@ -7,7 +7,7 @@
 
 #define MSG_PERIOD_MS (1000U)
 
-LOG_MODULE_REGISTER(main, LOG_LEVEL_DBG);
+LOG_MODULE_REGISTER(main, CONFIG_APP_LOG_LEVEL);
 
 static void bt_connected_cb(void);
 static void send_tmr_cb(struct k_timer *p_tmr);
