@@ -95,7 +95,7 @@
 	pinctrl-0 = <&i2c0_default>;
 	pinctrl-names = "default";
 
-	max30101@57 {
+	max30101: max30101@57 {
 		compatible = "maxim,max30101";
 		status = "okay";
 		reg = <0x57>;
