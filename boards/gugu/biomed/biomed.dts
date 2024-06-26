@@ -10,8 +10,8 @@
 
 	chosen {
 		zephyr,sram = &sram0;
-		zephyr,console = &uart0;
-		zephyr,shell-uart = &uart0;
+		zephyr,console = &usb_serial;
+		zephyr,shell-uart = &usb_serial;
 		zephyr,flash = &flash0;
 		zephyr,code-partition = &slot0_partition;
 	};
@@ -25,11 +25,9 @@
 	clock-frequency = <ESP32_CLK_CPU_160M>;
 };
 
-&uart0 {
+&usb_serial {
 	status = "okay";
 	current-speed = <115200>;
-	pinctrl-0 = <&uart0_default>;
-	pinctrl-names = "default";
 };
 
 &gpio0 {
