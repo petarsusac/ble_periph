@@ -11,11 +11,12 @@
 #define SAMPLE_PERIOD_MS 10 // 100 Hz
 #define OVERSAMPLING_BUF_SIZE 10 // 10 Hz after averaging
 #define EDA_BUF_SIZE 50
+#define NUM_FILT_COEFS 13
 
 LOG_MODULE_REGISTER(eda, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
-static inline float mv_to_eda_ns(int32_t mv);
+static inline float mv_to_eda_ns(float mv);
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -32,6 +33,24 @@ static float eda_buf[EDA_BUF_SIZE];
 static ring_buffer_t eda_ring_buf;
 
 static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
+
+static const float filt_coefs[NUM_FILT_COEFS] = {
+    -0.002719748296486632f,
+    1.2038218586409178e-18f,
+    0.01580853697332853f,
+    0.05940870999155988f,
+    0.12706862970416977f,
+    0.19141010953237056f,
+    0.21804752419011558f,
+    0.19141010953237056f,
+    0.12706862970416982f,
+    0.05940870999155988f,
+    0.01580853697332855f,
+    1.2038218586409182e-18f,
+    -0.002719748296486632f, 
+};
+
+static int32_t filt_sample_buf[NUM_FILT_COEFS];
 
 int eda_start_sampling(void)
 {
@@ -59,6 +78,7 @@ int eda_start_sampling(void)
 
     memset(oversampling_buf, 0, OVERSAMPLING_BUF_SIZE * sizeof(int32_t));
     oversampling_buf_idx = 0;
+    memset(filt_sample_buf, 0, NUM_FILT_COEFS * sizeof(int32_t));
 
     err = ring_buffer_init(&eda_ring_buf, eda_buf, EDA_BUF_SIZE);
     if (err < 0)
@@ -99,6 +119,7 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
     int err;
     int32_t mv;
     int32_t avg_mv;
+    float filt_sum;
     float eda_value_ns;
 
     err = adc_read_dt(&adc_channel, &adc_seq);
@@ -121,7 +142,6 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
         
         mv = adc_buf;
         adc_raw_to_millivolts_dt(&adc_channel, &mv);
-        // LOG_DBG("ADC got value %d (%d mV)", adc_buf, mv);
 
         oversampling_buf[oversampling_buf_idx++] = mv;
         if (oversampling_buf_idx >= OVERSAMPLING_BUF_SIZE)
@@ -135,7 +155,18 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
 
             avg_mv /= OVERSAMPLING_BUF_SIZE;
 
-            eda_value_ns = mv_to_eda_ns(avg_mv);
+            memmove(filt_sample_buf, &filt_sample_buf[1], (NUM_FILT_COEFS - 1) * sizeof(int32_t));
+            filt_sample_buf[NUM_FILT_COEFS - 1] = avg_mv;
+            filt_sum = 0.0f;
+
+            for (size_t i = 0; i < NUM_FILT_COEFS; i++)
+            {
+                filt_sum += filt_coefs[i] * filt_sample_buf[i];
+            }
+
+            // printk("%d\n", (int) filt_sum);
+
+            eda_value_ns = mv_to_eda_ns(filt_sum);
 
             ring_buffer_put(&eda_ring_buf, eda_value_ns);
         }
@@ -143,7 +174,7 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
 }
 
 // Convert value from ADC in mV to skin conductance value in nS
-static inline float mv_to_eda_ns(int32_t mv)
+static inline float mv_to_eda_ns(float mv)
 {
     const float r_403 = 200000.0f;
     const float a_u_ref = 0.995f;
