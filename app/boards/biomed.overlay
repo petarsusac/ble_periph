@@ -1,0 +1,9 @@
+/delete-node/ &max30101;
+
+&i2c0 {
+    max30100: max30100@57 {
+		compatible = "maxim,max30100";
+		status = "okay";
+		reg = <0x57>;
+	};
+};

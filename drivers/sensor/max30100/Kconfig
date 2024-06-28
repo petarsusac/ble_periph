@@ -1,0 +1,4 @@
+menuconfig MAX30100
+    bool "MAX30100"
+    default y
+    select I2C
