@@ -18,6 +18,9 @@
 #define IBI_MOV_AVG_SIZE 30
 #define AMP_MOV_AVG_SIZE 4
 
+#define HR_MIN 40.0f
+#define HR_MAX 200.0f
+
 LOG_MODULE_REGISTER(ppg, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
@@ -147,11 +150,19 @@ static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3)
                 diff_ms = current_beat_ms - last_beat_ms;
 
                 bpm = ms_to_bpm(diff_ms);
-                ring_buffer_put(&hr_mov_avg_ring_buf, bpm);
 
-                ring_buffer_put(&ibi_mov_avg_ring_buf, (float) diff_ms);
+                // Check if HR is realistic to reduce the effect of missed or
+                // false heart beats
+                if ((bpm > HR_MIN) && (bpm < HR_MAX))
+                {
+                    ring_buffer_put(&hr_mov_avg_ring_buf, bpm);
 
-                ring_buffer_put(&amp_mov_avg_ring_buf, (float) amplitude);
+                    ring_buffer_put(&ibi_mov_avg_ring_buf, (float) diff_ms);
+
+                    ring_buffer_put(&amp_mov_avg_ring_buf, (float) amplitude);
+
+                    // printk("%d\n", (int) bpm);
+                }
             }
 
             last_beat_ms = current_beat_ms;
