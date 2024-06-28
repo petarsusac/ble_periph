@@ -9,14 +9,30 @@
 #include "ring_buffer.h"
 
 #define SAMPLE_PERIOD_MS 10 // 100 Hz
+
+#define SMPL_THRD_STACK_SIZE (8192U)
+#define SMPL_THRD_PRIO 2
+
 #define OVERSAMPLING_BUF_SIZE 10 // 10 Hz after averaging
 #define EDA_BUF_SIZE 50
+
 #define NUM_FILT_COEFS 13
 
 LOG_MODULE_REGISTER(eda, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
+static void eda_smpl_thrd_run(void *p1, void *p2, void *p3);
 static inline float mv_to_eda_ns(float mv);
+
+static K_THREAD_DEFINE(eda_smpl_thrd,
+                       8192,
+                       eda_smpl_thrd_run,
+                       NULL, NULL, NULL, 
+                       SMPL_THRD_PRIO, 0, 0);
+
+static K_SEM_DEFINE(sampling_sem, 0, 1);
+
+static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -31,8 +47,6 @@ static size_t oversampling_buf_idx;
 
 static float eda_buf[EDA_BUF_SIZE];
 static ring_buffer_t eda_ring_buf;
-
-static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
 
 static const float filt_coefs[NUM_FILT_COEFS] = {
     -0.002719748296486632f,
@@ -116,59 +130,69 @@ uint32_t eda_get_epc(void)
 
 static void sampling_tmr_cb(struct k_timer *p_tmr)
 {
+    k_sem_give(&sampling_sem);
+}
+
+static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
+{
     int err;
     int32_t mv;
     int32_t avg_mv;
     float filt_sum;
     float eda_value_ns;
 
-    err = adc_read_dt(&adc_channel, &adc_seq);
-    if (err < 0)
+    for(;;)
     {
-        LOG_ERR("Error reading from ADC");
-    }
-    else
-    {
-        // HACK! For some reason the ADC readings are offset by 1023, possible
-        // bug in the ESP32 ADC driver
-        if (adc_buf >= 1023)
+        k_sem_take(&sampling_sem, K_FOREVER);
+
+        err = adc_read_dt(&adc_channel, &adc_seq);
+        if (err < 0)
         {
-            adc_buf = adc_buf - 1023;
+            LOG_ERR("Error reading from ADC");
         }
         else
         {
-            adc_buf = 0;
-        }
-        
-        mv = adc_buf;
-        adc_raw_to_millivolts_dt(&adc_channel, &mv);
-
-        oversampling_buf[oversampling_buf_idx++] = mv;
-        if (oversampling_buf_idx >= OVERSAMPLING_BUF_SIZE)
-        {
-            oversampling_buf_idx = 0;
-            avg_mv = 0;
-            for (size_t i = 0; i < OVERSAMPLING_BUF_SIZE; i++)
+            // HACK! For some reason the ADC readings are offset by 1023, possible
+            // bug in the ESP32 ADC driver
+            if (adc_buf >= 1023)
             {
-                avg_mv += oversampling_buf[i];
+                adc_buf = adc_buf - 1023;
             }
-
-            avg_mv /= OVERSAMPLING_BUF_SIZE;
-
-            memmove(filt_sample_buf, &filt_sample_buf[1], (NUM_FILT_COEFS - 1) * sizeof(int32_t));
-            filt_sample_buf[NUM_FILT_COEFS - 1] = avg_mv;
-            filt_sum = 0.0f;
-
-            for (size_t i = 0; i < NUM_FILT_COEFS; i++)
+            else
             {
-                filt_sum += filt_coefs[i] * filt_sample_buf[i];
+                adc_buf = 0;
             }
+            
+            mv = adc_buf;
+            adc_raw_to_millivolts_dt(&adc_channel, &mv);
 
-            // printk("%d\n", (int) filt_sum);
+            oversampling_buf[oversampling_buf_idx++] = mv;
+            if (oversampling_buf_idx >= OVERSAMPLING_BUF_SIZE)
+            {
+                oversampling_buf_idx = 0;
+                avg_mv = 0;
+                for (size_t i = 0; i < OVERSAMPLING_BUF_SIZE; i++)
+                {
+                    avg_mv += oversampling_buf[i];
+                }
 
-            eda_value_ns = mv_to_eda_ns(filt_sum);
+                avg_mv /= OVERSAMPLING_BUF_SIZE;
 
-            ring_buffer_put(&eda_ring_buf, eda_value_ns);
+                memmove(filt_sample_buf, &filt_sample_buf[1], (NUM_FILT_COEFS - 1) * sizeof(int32_t));
+                filt_sample_buf[NUM_FILT_COEFS - 1] = avg_mv;
+                filt_sum = 0.0f;
+
+                for (size_t i = 0; i < NUM_FILT_COEFS; i++)
+                {
+                    filt_sum += filt_coefs[i] * filt_sample_buf[i];
+                }
+
+                // printk("%d\n", (int) filt_sum);
+
+                eda_value_ns = mv_to_eda_ns(filt_sum);
+
+                ring_buffer_put(&eda_ring_buf, eda_value_ns);
+            }
         }
     }
 }
