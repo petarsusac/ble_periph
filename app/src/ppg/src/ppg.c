@@ -9,7 +9,11 @@
 #include "heartRate.h"
 #include "ring_buffer.h"
 
+#define SMPL_THRD_STACK_SIZE (8192U)
+#define SMPL_THRD_PRIO 3
+
 #define SAMPLE_PERIOD_MS 20 // 50 Hz
+
 #define HR_MOV_AVG_SIZE 4
 #define IBI_MOV_AVG_SIZE 30
 #define AMP_MOV_AVG_SIZE 4
@@ -17,7 +21,16 @@
 LOG_MODULE_REGISTER(ppg, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
+static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3);
 static inline float ms_to_bpm(int64_t ms);
+
+static K_THREAD_DEFINE(ppg_smpl_thrd,
+                       8192,
+                       ppg_smpl_thrd_run,
+                       NULL, NULL, NULL, 
+                       SMPL_THRD_PRIO, 0, 0);
+
+static K_SEM_DEFINE(sampling_sem, 0, 1);
 
 static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
 
@@ -30,7 +43,8 @@ static ring_buffer_t ibi_mov_avg_ring_buf;
 static float amp_mov_avg_buf[AMP_MOV_AVG_SIZE];
 static ring_buffer_t amp_mov_avg_ring_buf;
 
-static const struct device *const p_sensor_dev = DEVICE_DT_GET(DT_NODELABEL(max30101));
+// static const struct device *const p_sensor_dev = DEVICE_DT_GET(DT_NODELABEL(max30101));
+static const struct device *const p_sensor_dev = DEVICE_DT_GET(DT_NODELABEL(max30100));
 
 void ppg_start_sampling(void)
 {
@@ -91,6 +105,11 @@ uint32_t ppg_get_amplitude(void)
 
 static void sampling_tmr_cb(struct k_timer *p_tmr)
 {
+    k_sem_give(&sampling_sem);
+}
+
+static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3)
+{
     int ret;
     struct sensor_value sens_val;
     static int64_t last_beat_ms = 0;
@@ -99,32 +118,44 @@ static void sampling_tmr_cb(struct k_timer *p_tmr)
     float bpm;
     int16_t amplitude;
 
-    ret = sensor_sample_fetch_chan(p_sensor_dev, SENSOR_CHAN_GREEN);
-    if (ret != 0)
+    for (;;)
     {
-        LOG_ERR("Failed to fetch PPG sample");
-        return;
-    }
+        k_sem_take(&sampling_sem, K_FOREVER);    
 
-    sensor_channel_get(p_sensor_dev, SENSOR_CHAN_GREEN, &sens_val);
-
-    if (checkForBeat(sens_val.val1, &amplitude))
-    {
-        current_beat_ms = k_uptime_get();
-
-        if (last_beat_ms != 0)
+        ret = sensor_sample_fetch_chan(p_sensor_dev, SENSOR_CHAN_RED);
+        if (ret != 0)
         {
-            diff_ms = current_beat_ms - last_beat_ms;
-
-            bpm = ms_to_bpm(diff_ms);
-            ring_buffer_put(&hr_mov_avg_ring_buf, bpm);
-
-            ring_buffer_put(&ibi_mov_avg_ring_buf, (float) diff_ms);
-
-            ring_buffer_put(&amp_mov_avg_ring_buf, (float) amplitude);
+            LOG_ERR("Failed to fetch PPG sample");
+            return;
         }
 
-        last_beat_ms = current_beat_ms;
+        ret = sensor_channel_get(p_sensor_dev, SENSOR_CHAN_RED, &sens_val);
+        if (ret != 0)
+        {
+            LOG_ERR("Failed to get PPG sample");
+            return;
+        }
+
+        // printk("%d\n", sens_val.val1);
+
+        if (checkForBeat(sens_val.val1, &amplitude))
+        {
+            current_beat_ms = k_uptime_get();
+
+            if (last_beat_ms != 0)
+            {
+                diff_ms = current_beat_ms - last_beat_ms;
+
+                bpm = ms_to_bpm(diff_ms);
+                ring_buffer_put(&hr_mov_avg_ring_buf, bpm);
+
+                ring_buffer_put(&ibi_mov_avg_ring_buf, (float) diff_ms);
+
+                ring_buffer_put(&amp_mov_avg_ring_buf, (float) amplitude);
+            }
+
+            last_beat_ms = current_beat_ms;
+        }
     }
 }
 
