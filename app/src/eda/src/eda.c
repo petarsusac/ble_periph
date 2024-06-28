@@ -22,6 +22,10 @@ LOG_MODULE_REGISTER(eda, CONFIG_APP_LOG_LEVEL);
 
 static void sampling_tmr_cb(struct k_timer *p_tmr);
 static void eda_smpl_thrd_run(void *p1, void *p2, void *p3);
+static inline float fir_filter(int32_t new_sample,
+                            int32_t *filt_sample_buf, 
+                            const float *filt_coefs, 
+                            size_t num_coefs);
 static inline float mv_to_eda_ns(float mv);
 
 static K_THREAD_DEFINE(eda_smpl_thrd,
@@ -65,6 +69,7 @@ static const float filt_coefs[NUM_FILT_COEFS] = {
 };
 
 static int32_t filt_sample_buf[NUM_FILT_COEFS];
+static size_t filt_sample_num;
 
 int eda_start_sampling(void)
 {
@@ -93,6 +98,7 @@ int eda_start_sampling(void)
     memset(oversampling_buf, 0, OVERSAMPLING_BUF_SIZE * sizeof(int32_t));
     oversampling_buf_idx = 0;
     memset(filt_sample_buf, 0, NUM_FILT_COEFS * sizeof(int32_t));
+    filt_sample_num = 0;
 
     err = ring_buffer_init(&eda_ring_buf, eda_buf, EDA_BUF_SIZE);
     if (err < 0)
@@ -138,7 +144,7 @@ static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
     int err;
     int32_t mv;
     int32_t avg_mv;
-    float filt_sum;
+    float filtered_sample;
     float eda_value_ns;
 
     for(;;)
@@ -178,23 +184,41 @@ static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
 
                 avg_mv /= OVERSAMPLING_BUF_SIZE;
 
-                memmove(filt_sample_buf, &filt_sample_buf[1], (NUM_FILT_COEFS - 1) * sizeof(int32_t));
-                filt_sample_buf[NUM_FILT_COEFS - 1] = avg_mv;
-                filt_sum = 0.0f;
+                filtered_sample = fir_filter(avg_mv, filt_sample_buf, filt_coefs, NUM_FILT_COEFS);
 
-                for (size_t i = 0; i < NUM_FILT_COEFS; i++)
+                // Skip filter settling time
+                if (filt_sample_num < NUM_FILT_COEFS)
                 {
-                    filt_sum += filt_coefs[i] * filt_sample_buf[i];
+                    filt_sample_num++;
                 }
+                else
+                {
+                    printk("%d\n", (int) filtered_sample);
 
-                // printk("%d\n", (int) filt_sum);
-
-                eda_value_ns = mv_to_eda_ns(filt_sum);
-
-                ring_buffer_put(&eda_ring_buf, eda_value_ns);
+                    eda_value_ns = mv_to_eda_ns(filtered_sample);
+                    ring_buffer_put(&eda_ring_buf, eda_value_ns);
+                }
             }
         }
     }
+}
+
+static inline float fir_filter(int32_t new_sample,
+                            int32_t *filt_sample_buf, 
+                            const float *filt_coefs, 
+                            size_t num_coefs)
+{
+    float filt_sum = 0.0f;
+
+    memmove(filt_sample_buf, &filt_sample_buf[1], (num_coefs - 1) * sizeof(int32_t));
+    filt_sample_buf[NUM_FILT_COEFS - 1] = new_sample;
+
+    for (size_t i = 0; i < NUM_FILT_COEFS; i++)
+    {
+        filt_sum += filt_coefs[i] * filt_sample_buf[i];
+    }
+
+    return filt_sum;
 }
 
 // Convert value from ADC in mV to skin conductance value in nS
