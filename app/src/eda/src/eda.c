@@ -14,7 +14,7 @@
 #define SMPL_THRD_PRIO 2
 
 #define OVERSAMPLING_BUF_SIZE 10 // 10 Hz after averaging
-#define EDA_BUF_SIZE 50
+#define EDA_BUF_SIZE 100
 
 #define NUM_FILT_COEFS 13
 
