@@ -201,7 +201,7 @@ static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
 static inline float mv_to_eda_ns(float mv)
 {
     const float r_403 = 200000.0f;
-    const float a_u_ref = 0.995f;
+    const float a_u_ref = 0.5f;
     float rs = r_403 * ((a_u_ref / (mv / 1000.0f)) - 1.0f);
     return (1.0e9f / rs);
 }
