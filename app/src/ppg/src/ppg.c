@@ -23,7 +23,6 @@
 
 LOG_MODULE_REGISTER(ppg, CONFIG_APP_LOG_LEVEL);
 
-static void sampling_tmr_cb(struct k_timer *p_tmr);
 static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3);
 static inline float ms_to_bpm(int64_t ms);
 
@@ -33,9 +32,7 @@ static K_THREAD_DEFINE(ppg_smpl_thrd,
                        NULL, NULL, NULL, 
                        SMPL_THRD_PRIO, 0, 0);
 
-static K_SEM_DEFINE(sampling_sem, 0, 1);
-
-static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
+static K_TIMER_DEFINE(sampling_tmr, NULL, NULL);
 
 static float hr_mov_avg_buf[HR_MOV_AVG_SIZE];
 static ring_buffer_t hr_mov_avg_ring_buf;
@@ -106,11 +103,6 @@ uint32_t ppg_get_amplitude(void)
     return (uint32_t) roundf(ampl);
 }
 
-static void sampling_tmr_cb(struct k_timer *p_tmr)
-{
-    k_sem_give(&sampling_sem);
-}
-
 static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3)
 {
     int ret;
@@ -123,7 +115,7 @@ static void ppg_smpl_thrd_run(void *p1, void *p2, void *p3)
 
     for (;;)
     {
-        k_sem_take(&sampling_sem, K_FOREVER);    
+        k_timer_status_sync(&sampling_tmr); 
 
         ret = sensor_sample_fetch_chan(p_sensor_dev, SENSOR_CHAN_RED);
         if (ret != 0)

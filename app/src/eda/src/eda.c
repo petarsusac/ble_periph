@@ -20,7 +20,6 @@
 
 LOG_MODULE_REGISTER(eda, CONFIG_APP_LOG_LEVEL);
 
-static void sampling_tmr_cb(struct k_timer *p_tmr);
 static void eda_smpl_thrd_run(void *p1, void *p2, void *p3);
 static inline float fir_filter(int32_t new_sample,
                             int32_t *filt_sample_buf, 
@@ -34,9 +33,7 @@ static K_THREAD_DEFINE(eda_smpl_thrd,
                        NULL, NULL, NULL, 
                        SMPL_THRD_PRIO, 0, 0);
 
-static K_SEM_DEFINE(sampling_sem, 0, 1);
-
-static K_TIMER_DEFINE(sampling_tmr, sampling_tmr_cb, NULL);
+static K_TIMER_DEFINE(sampling_tmr, NULL, NULL);
 
 static const struct adc_dt_spec adc_channel = ADC_DT_SPEC_GET(DT_PATH(zephyr_user));
 
@@ -134,11 +131,6 @@ uint32_t eda_get_epc(void)
     return (uint32_t) roundf(epc);
 }
 
-static void sampling_tmr_cb(struct k_timer *p_tmr)
-{
-    k_sem_give(&sampling_sem);
-}
-
 static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
 {
     int err;
@@ -149,7 +141,7 @@ static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
 
     for(;;)
     {
-        k_sem_take(&sampling_sem, K_FOREVER);
+        k_timer_status_sync(&sampling_tmr);
 
         err = adc_read_dt(&adc_channel, &adc_seq);
         if (err < 0)
