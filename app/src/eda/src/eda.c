@@ -68,7 +68,7 @@ static const float filt_coefs[NUM_FILT_COEFS] = {
 static int32_t filt_sample_buf[NUM_FILT_COEFS];
 static size_t filt_sample_num;
 
-int eda_start_sampling(void)
+int eda_init(void)
 {
     int err;
 
@@ -104,9 +104,12 @@ int eda_start_sampling(void)
         return err;
     }
 
-    k_timer_start(&sampling_tmr, K_MSEC(SAMPLE_PERIOD_MS), K_MSEC(SAMPLE_PERIOD_MS));
+    return err;
+}
 
-    return 0;
+void eda_start_sampling(void)
+{
+    k_timer_start(&sampling_tmr, K_MSEC(SAMPLE_PERIOD_MS), K_MSEC(SAMPLE_PERIOD_MS));
 }
 
 uint32_t eda_get_epc(void)

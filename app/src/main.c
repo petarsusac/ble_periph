@@ -16,7 +16,12 @@ K_TIMER_DEFINE(send_tmr, send_tmr_cb, NULL);
 
 int main(void)
 {
+	LOG_INF("App start");
+	ppg_init();
+	eda_init();
+	
 	bt_start(bt_connected_cb);
+	bt_connected_cb();
 
 	return 0;
 }

@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+int ppg_init(void);
 void ppg_start_sampling(void);
 uint32_t ppg_get_hr_bpm(void);
 uint32_t ppg_get_rmssd(void);

@@ -3,7 +3,8 @@
 
 #include <stdint.h>
 
-int eda_start_sampling(void);
+int eda_init(void);
+void eda_start_sampling(void);
 uint32_t eda_get_epc(void);
 
 #endif /* _EDA_H_ */

@@ -46,18 +46,31 @@ static ring_buffer_t amp_mov_avg_ring_buf;
 // static const struct device *const p_sensor_dev = DEVICE_DT_GET(DT_NODELABEL(max30101));
 static const struct device *const p_sensor_dev = DEVICE_DT_GET(DT_NODELABEL(max30100));
 
-void ppg_start_sampling(void)
+int ppg_init(void)
 {
+    int err;
+
     if (!device_is_ready(p_sensor_dev))
     {
         LOG_ERR("PPG sensor not ready");
-        return;
+        return -1;
     }
 
-    ring_buffer_init(&hr_mov_avg_ring_buf, hr_mov_avg_buf, HR_MOV_AVG_SIZE);
-    ring_buffer_init(&ibi_mov_avg_ring_buf, ibi_mov_avg_buf, IBI_MOV_AVG_SIZE);
-    ring_buffer_init(&amp_mov_avg_ring_buf, amp_mov_avg_buf, AMP_MOV_AVG_SIZE);
+    err = ring_buffer_init(&hr_mov_avg_ring_buf, hr_mov_avg_buf, HR_MOV_AVG_SIZE);
+    if (0 == err)
+    {
+        err = ring_buffer_init(&ibi_mov_avg_ring_buf, ibi_mov_avg_buf, IBI_MOV_AVG_SIZE);
+    }
+    if (0 == err)
+    {
+        err = ring_buffer_init(&amp_mov_avg_ring_buf, amp_mov_avg_buf, AMP_MOV_AVG_SIZE);
+    }
 
+    return err;
+}
+
+void ppg_start_sampling(void)
+{
     k_timer_start(&sampling_tmr, K_MSEC(SAMPLE_PERIOD_MS), K_MSEC(SAMPLE_PERIOD_MS));
 }
 
