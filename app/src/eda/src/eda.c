@@ -193,9 +193,9 @@ static void eda_smpl_thrd_run(void *p1, void *p2, void *p3)
                 }
                 else
                 {
-                    printk("%d\n", (int) filtered_sample);
-
                     eda_value_ns = mv_to_eda_ns(filtered_sample);
+                    // printk("%d\n", (int) eda_value_ns);
+
                     ring_buffer_put(&eda_ring_buf, eda_value_ns);
                 }
             }

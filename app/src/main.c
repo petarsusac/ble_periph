@@ -64,7 +64,7 @@ static void send_tmr_cb(struct k_timer *p_tmr)
 			msg[0],
 			((uint16_t) msg[2] << 8) | msg[1],
 			((uint16_t) msg[4] << 8) | msg[3],
-			((uint16_t) msg[5] << 8) | msg[6]);
+			((uint16_t) msg[6] << 8) | msg[5]);
 
 	bt_send_notification(msg, BT_PAYLOAD_LEN);
 }
